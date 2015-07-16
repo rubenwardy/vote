@@ -14,7 +14,8 @@ minetest.register_chatcommand("vote_kick", {
 	},
 	func = function(name, param)
 		if not minetest.get_player_by_name(param) then
-			minetest.chat_send_player(name, "There is no player called '" .. param .. "'")
+			minetest.chat_send_player(name, "There is no player called '" ..
+					param .. "'")
 		end
 
 		vote.new_vote(name, {
