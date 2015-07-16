@@ -5,6 +5,11 @@ Created by [rubenwardy](http://rubenwardy.com)
 Copyright (c) 2015, no rights reserved
 Licensed under WTFPL or CC0 (you choose)
 
+# Settings
+
+* vote.maximum_active - maximum votes running at a time, votes are queued if it
+                        reaches this. Defaults to 1.
+
 # Example
 
 ```lua

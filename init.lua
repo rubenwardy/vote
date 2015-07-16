@@ -4,7 +4,7 @@ vote = {
 }
 
 function vote.new_vote(creator, voteset)
-	local max_votes = tonumber(minetest.setting_get("vote_maximum_active")) or 1
+	local max_votes = tonumber(minetest.setting_get("vote.maximum_active")) or 1
 
 	if #vote.active < max_votes then
 		vote.start_vote(voteset)
@@ -50,30 +50,8 @@ function vote.start_vote(voteset)
 		end)
 	end
 
-	-- Send notification to players
-	local players = minetest.get_connected_players()
-	for _, player in pairs(players) do
-		local name = player:get_player_name()
-		if not voteset.can_vote or
-				voteset:can_vote(name) then
-			local nextvote = vote.get_next_vote(name)
-			if nextvote == voteset then
-				minetest.chat_send_player(name,
-						"Vote started: " .. voteset.description)
-				if voteset.help then
-					minetest.chat_send_player(name,  voteset.help)
-				end
-			else
-				minetest.chat_send_player(name,
-						"A new vote started, please respond to this one first:")
-				minetest.chat_send_player(name,
-						"Next vote: " .. nextvote.description)
-				if nextvote.help then
-					minetest.chat_send_player(name,  nextvote.help)
-				end
-			end
-		end
-	end
+	-- Show HUD a.s.a.p.
+	vote.update_all_hud()
 end
 
 function vote.end_vote(voteset)
@@ -87,7 +65,6 @@ function vote.end_vote(voteset)
 	if not removed then
 		return
 	end
-
 
 	local result = nil
 	if voteset.on_decide then
@@ -109,11 +86,15 @@ function vote.end_vote(voteset)
 		voteset:on_result(result, voteset.results)
 	end
 
-	local max_votes = tonumber(minetest.setting_get("vote_maximum_active")) or 1
+	local max_votes = tonumber(minetest.setting_get("vote.maximum_active")) or 1
 	if #vote.active < max_votes and #vote.queue > 0 then
 		local nextvote = table.remove(vote.queue, 1)
 		vote.start_vote(nextvote)
+	else
+		-- Update HUD a.s.a.p.
+		vote.update_all_hud()
 	end
+
 end
 
 function vote.get_next_vote(name)
@@ -155,15 +136,72 @@ function vote.vote(voteset, name, value)
 		voteset:on_vote(name, value)
 	end
 	vote.check_vote(voteset)
+end
 
-	local nextvote = vote.get_next_vote(name)
-	if nextvote then
-		minetest.chat_send_player(name, "Next vote: " .. nextvote.description)
-		if nextvote.help then
-			minetest.chat_send_player(name,  nextvote.help)
+local hudkit = dofile(minetest.get_modpath("vote") .. "/hudkit.lua")
+vote.hud = hudkit()
+function vote.update_hud(player)
+	local name = player:get_player_name()
+	local voteset = vote.get_next_vote(name)
+	if not voteset then
+		vote.hud:remove(player, "vote:desc")
+		vote.hud:remove(player, "vote:bg")
+		vote.hud:remove(player, "vote:help")
+		return
+	end
+
+	if not vote.hud:exists(player, "vote:bg") then
+		vote.hud:add(player, "vote:bg", {
+			hud_elem_type = "image",
+			position = {x = 1, y = 0.5},
+			scale = {x = 1, y = 1},
+			text = "vote_background.png",
+			offset = {x=-100, y = 10},
+			number = 0xFFFFFF
+		})
+	end
+
+	if vote.hud:exists(player, "vote:desc") then
+		vote.hud:change(player, "vote:desc", "text", voteset.description .. "?")
+	else
+		vote.hud:add(player, "vote:desc", {
+			hud_elem_type = "text",
+			position = {x = 1, y = 0.5},
+			scale = {x = 100, y = 100},
+			text = voteset.description .. "?",
+			offset = {x=-100, y = 0},
+			number = 0xFFFFFF
+		})
+	end
+
+	if voteset.help then
+		if vote.hud:exists(player, "vote:help") then
+			vote.hud:change(player, "vote:help", "text", voteset.help)
+		else
+			vote.hud:add(player, "vote:help", {
+				hud_elem_type = "text",
+				position = {x = 1, y = 0.5},
+				scale = {x = 100, y = 100},
+				text = voteset.help,
+				offset = {x=-100, y = 20},
+				number = 0xFFFFFF
+			})
 		end
+	else
+		vote.hud:remove(player, "vote:help")
 	end
 end
+minetest.register_on_leaveplayer(function(player)
+	vote.hud.players[player:get_player_name()] = nil
+end)
+function vote.update_all_hud()
+	local players = minetest.get_connected_players()
+	for _, player in pairs(players) do
+		vote.update_hud(player)
+	end
+	minetest.after(5, vote.update_all_hud)
+end
+minetest.after(5, vote.update_all_hud)
 
 minetest.register_chatcommand("yes", {
 	privs = {
@@ -244,10 +282,11 @@ minetest.register_chatcommand("vote_kick", {
 		if not minetest.get_player_by_name(param) then
 			minetest.chat_send_player(name, "There is no player called '" ..
 					param .. "'")
+			return
 		end
 
 		vote.new_vote(name, {
-			description = "Kick player " .. param,
+			description = "Kick " .. param,
 			help = "/yes,  /no  or  /abstain",
 			name = param,
 			time = 60,
