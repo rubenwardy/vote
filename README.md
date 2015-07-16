@@ -27,12 +27,7 @@ minetest.register_chatcommand("vote_kick", {
 			description = "Kick player " .. param,
 			help = "/yes,  /no  or  /abstain",
 			name = param,
-			time = 60,
-
-			can_vote = function(self, name)
-				-- eg:  return (self.name ~= name)
-				return true
-			end,
+			duration = 60,
 
 			on_result = function(self, result, results)
 				if result == "yes" then
@@ -47,11 +42,53 @@ minetest.register_chatcommand("vote_kick", {
 				end
 			end,
 
-			on_vote = function(self, name, vote)
-				minetest.chat_send_all(name .. " voted " .. vote .. " to '" ..
+			on_vote = function(self, name, value)
+				minetest.chat_send_all(name .. " voted " .. value .. " to '" ..
 						self.description .. "'")
 			end
 		})
 	end
 })
 ```
+
+# API
+
+## Results
+
+* voted - a key-value table. voted[name] = true if a player called name voted.
+* abstain - a list of the names of players who abstained.
+* <option> - a list of the names of players who voted for this option.
+
+For example:
+
+```lua
+results = {
+	voted = {
+		one = true,
+		two = true,
+		three = true,
+		four = true
+	}
+	yes = {"one", "three"},
+	no = {"two"}
+	abstain = {"four"}
+}
+
+```
+
+## Values
+
+* description - required.
+* help - recommended. How to respond to the vote.
+* duration - the duration of the vote, before it expires.
+* perc_needed - if yes/no, this is the percentage needed to pass.
+* options - a list of possible options. (not fully supported yet)
+
+## Methods
+
+* can_vote(self, name) - return true if player `name` can vote on this issue.
+* on_start(self) - called when vote starts. Return false to cancel.
+* on_decide(self, results) - see results section. Return the winning result.
+* on_result(self, result, results) - when vote ends, result is the winning result
+* on_vote(self, name, value) - called when a player casts a vote
+* on_abstain(self, name) - called when a player abstains

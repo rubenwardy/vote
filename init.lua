@@ -44,8 +44,8 @@ function vote.start_vote(voteset)
 	end
 
 	-- Timer for end
-	if voteset.time then
-		minetest.after(voteset.time + 0.1, function()
+	if voteset.duration or voteset.time then
+		minetest.after(voteset.duration + 0.1, function()
 			vote.end_vote(voteset)
 		end)
 	end
@@ -71,8 +71,9 @@ function vote.end_vote(voteset)
 		result = voteset:on_decide(voteset.results)
 	elseif voteset.results.yes and voteset.results.no then
 		local total = #voteset.results.yes + #voteset.results.no
+		local perc_needed = voteset.perc_needed or 0.5
 
-		if #voteset.results.yes / total > 0.8 then
+		if #voteset.results.yes / total > perc_needed then
 			result = "yes"
 		else
 			result = "no"
@@ -289,12 +290,8 @@ minetest.register_chatcommand("vote_kick", {
 			description = "Kick " .. param,
 			help = "/yes,  /no  or  /abstain",
 			name = param,
-			time = 60,
-
-			can_vote = function(self, name)
-				-- eg:  return (self.name ~= name)
-				return true
-			end,
+			duration = 60,
+			perc_needed = 0.8,
 
 			on_result = function(self, result, results)
 				if result == "yes" then
@@ -309,8 +306,8 @@ minetest.register_chatcommand("vote_kick", {
 				end
 			end,
 
-			on_vote = function(self, name, vote)
-				minetest.chat_send_all(name .. " voted " .. vote .. " to '" ..
+			on_vote = function(self, name, value)
+				minetest.chat_send_all(name .. " voted " .. value .. " to '" ..
 						self.description .. "'")
 			end
 		})
