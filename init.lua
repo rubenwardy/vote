@@ -139,6 +139,21 @@ function vote.vote(voteset, name, value)
 	vote.check_vote(voteset)
 end
 
+minetest.register_privilege("vote_admin", {
+	description = "Allows a player to manage running votes."
+})
+
+minetest.register_chatcommand("vote_clear", {
+	privs = {
+		vote_admin = true,
+	},
+	func = function(name, params)
+		vote.active = {}
+		vote.queue = {}
+		vote.update_all_hud()
+	end
+})
+
 local hudkit = dofile(minetest.get_modpath("vote") .. "/hudkit.lua")
 vote.hud = hudkit()
 function vote.update_hud(player)
@@ -287,14 +302,14 @@ if set == nil or minetest.is_yes(set) then
 						param .. "'")
 				return
 			end
-	
+
 			vote.new_vote(name, {
 				description = "Kick " .. param,
 				help = "/yes,  /no  or  /abstain",
 				name = param,
 				duration = 60,
 				perc_needed = 0.8,
-	
+
 				on_result = function(self, result, results)
 					if result == "yes" then
 						minetest.chat_send_all("Vote passed, " ..
@@ -307,7 +322,7 @@ if set == nil or minetest.is_yes(set) then
 								self.name .. " remains ingame.")
 					end
 				end,
-	
+
 				on_vote = function(self, name, value)
 					minetest.chat_send_all(name .. " voted " .. value .. " to '" ..
 							self.description .. "'")
